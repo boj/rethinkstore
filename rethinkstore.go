@@ -50,7 +50,7 @@ func NewRethinkStore(addr, db, table string, idle, open int, keyPairs ...[]byte)
 	if err != nil {
 		return nil, err
 	}
-	return &RethinkStore{
+	rs := &RethinkStore{
 		Rethink: session,
 		Table:   table,
 		Codecs:  securecookie.CodecsFromPairs(keyPairs...),
@@ -58,7 +58,10 @@ func NewRethinkStore(addr, db, table string, idle, open int, keyPairs ...[]byte)
 			Path:   "/",
 			MaxAge: sessionExpire,
 		},
-	}, nil
+	}
+
+	rs.MaxAge(sessionExpire)
+	return rs, nil
 }
 
 // Close closes the underlying Rethink Client.
@@ -110,6 +113,20 @@ func (s *RethinkStore) Save(r *http.Request, w http.ResponseWriter, session *ses
 		http.SetCookie(w, sessions.NewCookie(session.Name(), encoded, session.Options))
 	}
 	return nil
+}
+
+// MaxAge sets the maximum age for the store and the underlying cookie
+// implementation. Individual sessions can be deleted by setting Options.MaxAge
+// = -1 for that session.
+func (s *RethinkStore) MaxAge(age int) {
+	s.Options.MaxAge = age
+
+	// Set the maxAge for each securecookie instance.
+	for _, codec := range s.Codecs {
+		if sc, ok := codec.(*securecookie.SecureCookie); ok {
+			sc.MaxAge(age)
+		}
+	}
 }
 
 // save stores the session in rethink.
