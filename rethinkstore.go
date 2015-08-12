@@ -141,7 +141,7 @@ func (s *RethinkStore) save(session *sessions.Session) error {
 	if age == 0 {
 		age = s.DefaultMaxAge
 	}
-	_, err = r.Table(s.Table).Insert(RethinkSession{Id: session.ID, Session: buf.Bytes()}).Run(s.Rethink)
+	_, err = r.Table(s.Table).Get(session.ID).Replace(RethinkSession{Id: session.ID, Session: buf.Bytes()}).Run(s.Rethink)
 	return err
 }
 
