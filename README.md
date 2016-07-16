@@ -18,29 +18,36 @@ See http://www.gorillatoolkit.org/pkg/sessions for full documentation on underly
 
 ### Example
 
-    // Fetch new store.
-	store, err := NewRethinkStore("127.0.0.1:28015", "my-db", "my-session-table", 5, 5, []byte("secret-key"))
-    if err != nil {
-        panic(err)
-    }
-    defer store.Close()
+```go
+// Fetch new store.
+store, err := NewRethinkStore("127.0.0.1:28015",
+                              "my-db",
+                              "my-session-table",
+                              5 /*MaxIdle*/,
+                              5 /*MaxOpen*/,
+                              []byte("secret-key"))
+if err != nil {
+    panic(err)
+}
+defer store.Close()
 
-    // Get a session.
-	session, err := store.Get(req, "session-key")
-	if err != nil {
-        log.Error(err.Error())
-    }
+// Get a session.
+session, err := store.Get(req, "session-key")
+if err != nil {
+    log.Error(err.Error())
+}
 
-    // Add a value.
-    session.Values["foo"] = "bar"
+// Add a value.
+session.Values["foo"] = "bar"
 
-    // Save.
-    if err = sessions.Save(req, rsp); err != nil {
-        t.Fatalf("Error saving session: %v", err)
-    }
+// Save.
+if err = sessions.Save(req, rsp); err != nil {
+    t.Fatalf("Error saving session: %v", err)
+}
 
-    // Delete session.
-    session.Options.MaxAge = -1
-    if err = sessions.Save(req, rsp); err != nil {
-        t.Fatalf("Error saving session: %v", err)
-    }
+// Delete session.
+session.Options.MaxAge = -1
+if err = sessions.Save(req, rsp); err != nil {
+    t.Fatalf("Error saving session: %v", err)
+}
+```
