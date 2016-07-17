@@ -85,17 +85,17 @@ func rethinkSession() *r.Session {
 }
 
 func Setup() error {
-	if err := r.DbCreate(TestDatabase).Exec(rethinkSession()); err != nil {
+	if err := r.DBCreate(TestDatabase).Exec(rethinkSession()); err != nil {
 		return err
 	}
-	return r.Db(TestDatabase).TableCreate(TestTable).Exec(rethinkSession())
+	return r.DB(TestDatabase).TableCreate(TestTable).Exec(rethinkSession())
 }
 
 func Teardown() error {
-	if err := r.Db(TestDatabase).TableDrop(TestTable).Exec(rethinkSession()); err != nil {
+	if err := r.DB(TestDatabase).TableDrop(TestTable).Exec(rethinkSession()); err != nil {
 		return err
 	}
-	return r.DbDrop(TestDatabase).Exec(rethinkSession())
+	return r.DBDrop(TestDatabase).Exec(rethinkSession())
 }
 
 type FlashMessage struct {
