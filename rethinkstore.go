@@ -64,9 +64,13 @@ func NewRethinkStore(addr, db, table string, idle, open int, keyPairs ...[]byte)
 
 	rs.MaxAge(sessionExpire)
 
-	// Create missing db and table. Discard error (database exists)
-	_, _ = r.DBCreate(db).RunWrite(session)
-	_, _ = r.DB(db).TableCreate(table).RunWrite(session)
+	// Create missing db, table and secondary index. Discard error (database exists)
+	r.DBCreate(db).RunWrite(session)
+	r.DB(db).TableCreate(table).RunWrite(session)
+
+	// Index for removing expired data
+	r.Table(table).IndexCreate("expires").Exec(session)
+	r.Table(table).IndexWait().RunWrite(session)
 
 	return rs, nil
 }
@@ -101,9 +105,6 @@ func (s *RethinkStore) New(r *http.Request, name string) (*sessions.Session, err
 func (s *RethinkStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
 	// Marked for deletion.
 	if session.Options.MaxAge < 0 {
-		if err := s.delete(session); err != nil {
-			return err
-		}
 		http.SetCookie(w, sessions.NewCookie(session.Name(), "", session.Options))
 	} else {
 		// Build an alphanumeric key for the redis store.
@@ -174,4 +175,30 @@ func (s *RethinkStore) load(session *sessions.Session) (bool, error) {
 func (s *RethinkStore) delete(session *sessions.Session) error {
 	_, err := r.Table(s.Table).Get(session.ID).Delete().Run(s.Rethink)
 	return err
+}
+
+// Deletes expired entries
+func (s *RethinkStore) DeleteExpired() error {
+	_, err := r.Table(s.Table).Between(r.MinVal, r.Now(), r.BetweenOpts{Index: "expires"}).Delete().Run(s.Rethink)
+	return err
+}
+
+func (s *RethinkStore) Count() (uint, error) {
+	var result interface{}
+	cursor, err := r.Table(s.Table).Count().Run(s.Rethink)
+	if err != nil {
+		return 0, err
+	}
+
+	err = cursor.One(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	count, ok := result.(float64)
+	if !ok {
+		return 0, errors.New("count isn't float64")
+	}
+
+	return uint(count), nil
 }

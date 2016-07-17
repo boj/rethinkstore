@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"net/http"
 	"testing"
+	"time"
 
 	r "github.com/dancannon/gorethink"
 	"github.com/gorilla/sessions"
@@ -117,6 +118,8 @@ func TestRethinkStore(t *testing.T) {
 	// Use of this source code is governed by a BSD-style
 	// license that can be found in the LICENSE file.
 
+	// Teardown just in case
+	Teardown()
 	if err := Setup(); err != nil {
 		panic(err)
 	}
@@ -274,4 +277,83 @@ func ExampleRethinkStore() {
 
 func init() {
 	gob.Register(FlashMessage{})
+}
+
+func TestDeleteExpiredFromEmpty(t *testing.T) {
+	store, err := NewRethinkStore("127.0.0.1:28015", TestDatabase, TestTable, 5, 5, []byte("secret-key"))
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer store.Close()
+
+	// Delete from empty
+	store.DeleteExpired()
+
+	count, err := store.Count()
+	if err != nil {
+		t.Fatalf("Error in count, ", err.Error())
+	}
+
+	if count != 0 {
+		t.Fatalf("Non zero count")
+	}
+}
+
+func TestDeleteExpired(t *testing.T) {
+	var req *http.Request
+	var rsp *ResponseRecorder
+	var err error
+	var session *sessions.Session
+	var flashes []interface{}
+
+	store, err := NewRethinkStore("127.0.0.1:28015", TestDatabase, TestTable, 5, 5, []byte("secret-key"))
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer store.Close()
+
+	req, _ = http.NewRequest("GET", "http://localhost:8080/", nil)
+	rsp = NewRecorder()
+	// Get a session.
+	if session, err = store.Get(req, "session-key"); err != nil {
+		t.Fatalf("Error getting session: %v", err)
+	}
+	// Get a flash.
+	flashes = session.Flashes()
+	if len(flashes) != 0 {
+		t.Errorf("Expected empty flashes; Got %v", flashes)
+	}
+	// Add some flashes.
+	session.AddFlash("foo")
+
+	// Save with the smallest possible MaxAge
+	session.Options.MaxAge = 0
+	if err = sessions.Save(req, rsp); err != nil {
+		t.Fatalf("Error saving session: %v", err)
+	}
+
+	count, err := store.Count()
+	if err != nil {
+		t.Fatalf("Error in count, ", err.Error())
+	}
+
+	if count != 1 {
+		t.Fatalf("Bad count")
+	}
+
+	time.Sleep(time.Second)
+
+	// Delete from empty
+	store.DeleteExpired()
+
+	count, err = store.Count()
+	if err != nil {
+		t.Fatalf("Error in count, ", err.Error())
+	}
+
+	if count != 0 {
+		t.Fatalf("Bad count: ", count)
+	}
+
+	Teardown()
 }
