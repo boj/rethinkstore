@@ -61,6 +61,11 @@ func NewRethinkStore(addr, db, table string, idle, open int, keyPairs ...[]byte)
 	}
 
 	rs.MaxAge(sessionExpire)
+
+	// Create missing db and table. Discard error (database exists)
+	_, _ = r.DBCreate(db).RunWrite(session)
+	_, _ = r.DB(db).TableCreate(table).RunWrite(session)
+
 	return rs, nil
 }
 
