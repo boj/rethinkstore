@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	r "github.com/dancannon/gorethink"
 	"github.com/gorilla/securecookie"
@@ -23,8 +24,9 @@ var ErrNoDatabase = errors.New("no databases available")
 var sessionExpire = 86400 * 30
 
 type RethinkSession struct {
-	Id      string `gorethink:"id"`
-	Session []byte `gorethink:"session"`
+	Id      string    `gorethink:"id"`
+	Expires time.Time `gorethink:"expires"`
+	Session []byte    `gorethink:"session"`
 }
 
 // RethinkStore stores sessions in a rethinkdb backend.
@@ -142,11 +144,14 @@ func (s *RethinkStore) save(session *sessions.Session) error {
 	if err != nil {
 		return err
 	}
+
 	age := session.Options.MaxAge
 	if age == 0 {
 		age = s.DefaultMaxAge
 	}
-	_, err = r.Table(s.Table).Get(session.ID).Replace(RethinkSession{Id: session.ID, Session: buf.Bytes()}).Run(s.Rethink)
+	expires := time.Now().Add(time.Duration(age) * time.Second)
+
+	_, err = r.Table(s.Table).Get(session.ID).Replace(RethinkSession{Id: session.ID, Expires: expires, Session: buf.Bytes()}).Run(s.Rethink)
 	return err
 }
 
