@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	r "github.com/dancannon/gorethink"
 	"github.com/gorilla/securecookie"
@@ -23,8 +24,9 @@ var ErrNoDatabase = errors.New("no databases available")
 var sessionExpire = 86400 * 30
 
 type RethinkSession struct {
-	Id      string `gorethink:"id"`
-	Session []byte `gorethink:"session"`
+	Id      string    `gorethink:"id"`
+	Expires time.Time `gorethink:"expires"`
+	Session []byte    `gorethink:"session"`
 }
 
 // RethinkStore stores sessions in a rethinkdb backend.
@@ -61,6 +63,15 @@ func NewRethinkStore(addr, db, table string, idle, open int, keyPairs ...[]byte)
 	}
 
 	rs.MaxAge(sessionExpire)
+
+	// Create missing db, table and secondary index. Discard error (database exists)
+	r.DBCreate(db).RunWrite(session)
+	r.DB(db).TableCreate(table).RunWrite(session)
+
+	// Index for removing expired data
+	r.Table(table).IndexCreate("expires").Exec(session)
+	r.Table(table).IndexWait().RunWrite(session)
+
 	return rs, nil
 }
 
@@ -94,9 +105,6 @@ func (s *RethinkStore) New(r *http.Request, name string) (*sessions.Session, err
 func (s *RethinkStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
 	// Marked for deletion.
 	if session.Options.MaxAge < 0 {
-		if err := s.delete(session); err != nil {
-			return err
-		}
 		http.SetCookie(w, sessions.NewCookie(session.Name(), "", session.Options))
 	} else {
 		// Build an alphanumeric key for the redis store.
@@ -137,11 +145,14 @@ func (s *RethinkStore) save(session *sessions.Session) error {
 	if err != nil {
 		return err
 	}
+
 	age := session.Options.MaxAge
 	if age == 0 {
 		age = s.DefaultMaxAge
 	}
-	_, err = r.Table(s.Table).Get(session.ID).Replace(RethinkSession{Id: session.ID, Session: buf.Bytes()}).Run(s.Rethink)
+	expires := time.Now().Add(time.Duration(age) * time.Second)
+
+	_, err = r.Table(s.Table).Get(session.ID).Replace(RethinkSession{Id: session.ID, Expires: expires, Session: buf.Bytes()}).Run(s.Rethink)
 	return err
 }
 
@@ -164,4 +175,30 @@ func (s *RethinkStore) load(session *sessions.Session) (bool, error) {
 func (s *RethinkStore) delete(session *sessions.Session) error {
 	_, err := r.Table(s.Table).Get(session.ID).Delete().Run(s.Rethink)
 	return err
+}
+
+// Deletes expired entries
+func (s *RethinkStore) DeleteExpired() error {
+	_, err := r.Table(s.Table).Between(r.MinVal, r.Now(), r.BetweenOpts{Index: "expires"}).Delete().Run(s.Rethink)
+	return err
+}
+
+func (s *RethinkStore) Count() (uint, error) {
+	var result interface{}
+	cursor, err := r.Table(s.Table).Count().Run(s.Rethink)
+	if err != nil {
+		return 0, err
+	}
+
+	err = cursor.One(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	count, ok := result.(float64)
+	if !ok {
+		return 0, errors.New("count isn't float64")
+	}
+
+	return uint(count), nil
 }

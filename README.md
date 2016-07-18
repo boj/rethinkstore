@@ -45,9 +45,17 @@ if err = sessions.Save(req, rsp); err != nil {
     t.Fatalf("Error saving session: %v", err)
 }
 
-// Delete session.
+// Delete session, but not from the store
 session.Options.MaxAge = -1
 if err = sessions.Save(req, rsp); err != nil {
     t.Fatalf("Error saving session: %v", err)
 }
+
+// Delete expired data. Call this function periodically
+session.Options.MaxAge = -1
+if err = store.DeleteExpired(); err != nil {
+    t.Fatalf("Error saving session: %v", err)
+}
+
+
 ```
