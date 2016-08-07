@@ -1,4 +1,4 @@
-# rethinkstore
+# rethinkstore [![Build Status](https://travis-ci.org/boj/rethinkstore.svg?branch=master)](https://travis-ci.org/boj/rethinkstore)
 
 A session store backend for [gorilla/sessions](http://www.gorillatoolkit.org/pkg/sessions) - [src](https://github.com/gorilla/sessions) using [Rethink](http://www.rethinkdb.com/).
 
