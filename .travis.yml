@@ -11,6 +11,7 @@ install:
 
 before_script:
   - rethinkdb --daemon
+  - go get -t github.com/boj/rethinkstore
 
 script:
   - go test github.com/boj/rethinkstore
