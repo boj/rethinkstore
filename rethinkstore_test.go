@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	r "github.com/dancannon/gorethink"
 	"github.com/gorilla/sessions"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v5"
 )
 
 var (

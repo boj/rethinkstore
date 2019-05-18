@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	r "github.com/dancannon/gorethink"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v5"
 )
 
 var ErrNoDatabase = errors.New("no databases available")
@@ -24,9 +24,9 @@ var ErrNoDatabase = errors.New("no databases available")
 var sessionExpire = 86400 * 30
 
 type RethinkSession struct {
-	Id      string    `gorethink:"id"`
-	Expires time.Time `gorethink:"expires"`
-	Session []byte    `gorethink:"session"`
+	Id      string    `rethinkdb:"id"`
+	Expires time.Time `rethinkdb:"expires"`
+	Session []byte    `rethinkdb:"session"`
 }
 
 // RethinkStore stores sessions in a rethinkdb backend.
