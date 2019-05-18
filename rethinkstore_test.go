@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	r "github.com/dancannon/gorethink"
 	"github.com/gorilla/sessions"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v5"
 )
 
 var (
@@ -129,7 +129,7 @@ func TestRethinkStore(t *testing.T) {
 	// RethinkStore
 	store, err := NewRethinkStore("127.0.0.1:28015", TestDatabase, TestTable, 5, 5, []byte("secret-key"))
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	defer store.Close()
 
@@ -156,7 +156,7 @@ func TestRethinkStore(t *testing.T) {
 	hdr = rsp.Header()
 	cookies, ok = hdr["Set-Cookie"]
 	if !ok || len(cookies) != 1 {
-		t.Fatalf("No cookies. Header:", hdr)
+		t.Fatalf("No cookies. Header: %s", hdr)
 	}
 
 	// Round 2 ----------------------------------------------------------------
@@ -230,7 +230,7 @@ func TestRethinkStore(t *testing.T) {
 	hdr = rsp.Header()
 	cookies, ok = hdr["Set-Cookie"]
 	if !ok || len(cookies) != 1 {
-		t.Fatalf("No cookies. Header:", hdr)
+		t.Fatalf("No cookies. Header: %s", hdr)
 	}
 
 	// Round 4 ----------------------------------------------------------------
@@ -291,7 +291,7 @@ func TestDeleteExpiredFromEmpty(t *testing.T) {
 
 	count, err := store.Count()
 	if err != nil {
-		t.Fatalf("Error in count, ", err.Error())
+		t.Fatalf("Error in count, %s", err.Error())
 	}
 
 	if count != 0 {
@@ -334,7 +334,7 @@ func TestDeleteExpired(t *testing.T) {
 
 	count, err := store.Count()
 	if err != nil {
-		t.Fatalf("Error in count, ", err.Error())
+		t.Fatalf("Error in count, %s", err.Error())
 	}
 
 	if count != 1 {
@@ -348,11 +348,11 @@ func TestDeleteExpired(t *testing.T) {
 
 	count, err = store.Count()
 	if err != nil {
-		t.Fatalf("Error in count, ", err.Error())
+		t.Fatalf("Error in count, %s", err.Error())
 	}
 
 	if count != 0 {
-		t.Fatalf("Bad count: ", count)
+		t.Fatalf("Bad count: %d", count)
 	}
 
 	Teardown()
